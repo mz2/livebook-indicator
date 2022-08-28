@@ -68,12 +68,6 @@ fn main() {
         None => {
           println!("Started livebook server");
 
-          let output = communicator.read_string();
-          println!("{:?}", output.unwrap());
-
-          let output = communicator.read_string();
-          println!("{:?}", output.unwrap());
-
           ctrlc::set_handler(move || match server_process.terminate() {
             Err(_) => println!("Failed to kill livebook server"),
             Ok(_) => process::exit(0),
