@@ -7,5 +7,7 @@ edition = "2021"
 
 [dependencies]
 gtk = "0.15.5"
-# gtk4 = "0.4.8"
 libappindicator = "0.7.1"
+subprocess = "0.2.9"
+signal-hook = "0.3.4"
+ctrlc = { version = "3.2.3", features = ["termination"] }
