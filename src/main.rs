@@ -67,7 +67,9 @@ fn main() {
         Some(f) => {
           let mut reader = BufReader::new(f);
           let mut line = String::new();
-          reader.read_line(&mut line).expect("Failed to read line");
+          reader
+            .read_line(&mut line)
+            .expect("Failed to read from livebook server stdout");
 
           lazy_static! {
             static ref APP_URL_PATTERN: Regex = Regex::new(r"(http.*)").unwrap();
@@ -88,7 +90,10 @@ fn main() {
           }
         }
         None => {
-          println!("Nothing to read");
+          println!("livebook server stdout unexpectedly not readable.");
+          server_process
+            .terminate()
+            .expect("Failed to terminate livebook server process");
           process::exit(-1);
         }
       }
