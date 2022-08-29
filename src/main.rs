@@ -1,4 +1,6 @@
 use std::env;
+use std::io::BufRead;
+use std::io::BufReader;
 use std::path::Path;
 use std::process;
 use subprocess::{Popen, PopenConfig};
@@ -6,20 +8,24 @@ use subprocess::{Popen, PopenConfig};
 use gtk::prelude::*;
 use libappindicator::{AppIndicator, AppIndicatorStatus};
 
-use signal_hook::flag;
+use lazy_static::lazy_static;
+use regex::Regex;
 use std::process::Command;
-use std::sync::Arc;
 
 use ctrlc;
+
+fn xdg_open(url: &str) {
+  Command::new("xdg-open")
+    .args([url])
+    .output()
+    .expect("Failed to open browser");
+}
 
 fn create_menu() -> gtk::Menu {
   let menu = gtk::Menu::new();
   let open_browser_item = gtk::CheckMenuItem::with_label("Open Browser");
   open_browser_item.connect_activate(|_| {
-    Command::new("xdg-open")
-      .args(["https://127.0.0.1:8082"])
-      .output()
-      .expect("Failed to open browser");
+    xdg_open("https://127.0.0.1:8082");
   });
   let quit_item = gtk::CheckMenuItem::with_label("Quit");
   quit_item.connect_activate(|_| {
@@ -45,9 +51,10 @@ fn create_indicator() -> AppIndicator {
 fn main() {
   gtk::init().unwrap();
 
-  let mut server = Popen::create(
+  let server = Popen::create(
     &["livebook"],
     PopenConfig {
+      stdout: subprocess::Redirection::Pipe,
       ..Default::default()
     },
   );
@@ -55,7 +62,36 @@ fn main() {
   match server {
     Err(_) => process::exit(-1),
     Ok(mut server_process) => {
-      let mut communicator = server_process.communicate_start(None);
+      let server_stdout = &server_process.stdout;
+      match &server_stdout {
+        Some(f) => {
+          let mut reader = BufReader::new(f);
+          let mut line = String::new();
+          reader.read_line(&mut line).expect("Failed to read line");
+
+          lazy_static! {
+            static ref APP_URL_PATTERN: Regex = Regex::new(r"(http.*)").unwrap();
+          }
+
+          // hack hack.
+          match &APP_URL_PATTERN.captures(&line) {
+            None => {
+              println!("Failed to find livebook server URL");
+              server_process
+                .terminate()
+                .expect("Failed to terminate livebook server");
+              process::exit(-1);
+            }
+            Some(url_capture) => {
+              xdg_open(&url_capture[1]);
+            }
+          }
+        }
+        None => {
+          println!("Nothing to read");
+          process::exit(-1);
+        }
+      }
 
       match server_process.poll() {
         Some(exit_status) => {
