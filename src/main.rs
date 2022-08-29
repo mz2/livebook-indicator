@@ -27,11 +27,11 @@ fn xdg_open(url: &str) {
 // passing a PID to avoid having to mess with borrowed, shared mutable state (the server process handle).
 fn create_menu(livebook_url: String, livebook_pid: u32) -> gtk::Menu {
   let menu = gtk::Menu::new();
-  let open_browser_item = gtk::CheckMenuItem::with_label("Open Browser");
+  let open_browser_item = gtk::MenuItem::with_label("Open Browser");
   open_browser_item.connect_activate(move |_| {
     xdg_open(&livebook_url);
   });
-  let quit_item = gtk::CheckMenuItem::with_label("Quit");
+  let quit_item = gtk::MenuItem::with_label("Quit");
   quit_item.connect_activate(move |_| match i32::try_from(livebook_pid) {
     Ok(livebook_pid) => {
       signal::kill(Pid::from_raw(livebook_pid), Signal::SIGKILL).expect(&format!(
@@ -73,7 +73,7 @@ fn create_indicator() -> AppIndicator {
 fn main() {
   gtk::init().unwrap();
 
-  // livebook server path different depending on whether we're confined or not.
+  // livebook server path different depending on whether inside or outside confinement.
   let server_path = match env::var("SNAP") {
     Ok(snap_root) => format!("{}/wrappers/start-livebook.sh", snap_root).to_string(),
     Err(_) => "livebook.server".to_string(),
