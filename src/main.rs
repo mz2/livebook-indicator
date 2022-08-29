@@ -21,11 +21,11 @@ fn xdg_open(url: &str) {
     .expect("Failed to open browser");
 }
 
-fn create_menu() -> gtk::Menu {
+fn create_menu(url: String) -> gtk::Menu {
   let menu = gtk::Menu::new();
   let open_browser_item = gtk::CheckMenuItem::with_label("Open Browser");
-  open_browser_item.connect_activate(|_| {
-    xdg_open("https://127.0.0.1:8082");
+  open_browser_item.connect_activate(move |_| {
+    xdg_open(&url);
   });
   let quit_item = gtk::CheckMenuItem::with_label("Quit");
   quit_item.connect_activate(|_| {
@@ -85,7 +85,31 @@ fn main() {
               process::exit(-1);
             }
             Some(url_capture) => {
-              xdg_open(&url_capture[1]);
+              let url = &url_capture[1];
+              xdg_open(url);
+
+              match server_process.poll() {
+                Some(exit_status) => {
+                  println!(
+                    "Failed to start livebook server (exited successfully: {:?}) (is it running already?)",
+                    exit_status.success()
+                  );
+                  process::exit(-1);
+                }
+                None => {
+                  println!("Started livebook server successfully.");
+                  ctrlc::set_handler(move || match server_process.terminate() {
+                    Err(_) => println!("Failed to kill livebook server"),
+                    Ok(_) => process::exit(0),
+                  })
+                  .expect("Error setting Ctrl-C handler");
+                  let mut indicator = create_indicator();
+                  let mut menu = create_menu(url.to_string());
+                  indicator.set_menu(&mut menu);
+                  menu.show_all();
+                  gtk::main();
+                }
+              }
             }
           }
         }
@@ -95,31 +119,6 @@ fn main() {
             .terminate()
             .expect("Failed to terminate livebook server process");
           process::exit(-1);
-        }
-      }
-
-      match server_process.poll() {
-        Some(exit_status) => {
-          println!(
-            "Failed to start livebook server (exited successfully: {:?}) (is it running already?)",
-            exit_status.success()
-          );
-          process::exit(-1);
-        }
-        None => {
-          println!("Started livebook server");
-
-          ctrlc::set_handler(move || match server_process.terminate() {
-            Err(_) => println!("Failed to kill livebook server"),
-            Ok(_) => process::exit(0),
-          })
-          .expect("Error setting Ctrl-C handler");
-
-          let mut indicator = create_indicator();
-          let mut menu = create_menu();
-          indicator.set_menu(&mut menu);
-          menu.show_all();
-          gtk::main();
         }
       }
     }

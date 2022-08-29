@@ -4,7 +4,21 @@ A GTK3 based Linux "desktop app" for Livebook, [on the same lines as the Liveboo
 
 This app is meant to go with the fully contained Livebook build currently developed over at https://github.com/livebook-dev/livebook/compare/main...mz2:livebook:mz2/snap (it is [built inside](https://github.com/mz2/livebook/blob/mz2/snap/snap/snapcraft.yaml#L30-L33) that package).
 
-# Building & running
+## Installing & running
+
+The indicator is packaged in the [experimental Livebook snap package](https://github.com/mz2/livebook/tree/mz2/snap), and is available on the Snap Store (presently unlisted and only on the edge channel). To install:
+
+```bash
+sudo snap install livebook --edge
+```
+
+Once installed, you can start the indicator with:
+
+```bash
+livebook.indicator
+```
+
+## Building & running locally
 
 To build this gtk-rs dependent app with `cargo`, a number of prerequisite packages are needed. As an example in Ubuntu 20.04:
 
@@ -34,14 +48,20 @@ You can then build & run livebook-indicator locally using Cargo.
 cargo run
 ```
 
-Perhaps the easier way to meet above prerequisites is to build the indicator is as part of the livebook Snap package: https://github.com/mz2/livebook/tree/mz2/snap
+Perhaps the easier way to meet above local build and runtime prerequisites is to build the indicator is as part of the livebook Snap package locally: https://github.com/mz2/livebook/tree/mz2/snap
 
 ```bash
 git clone https://github.com/mz2/livebook --branch mz2/snap
 snapcraft # to install snapcraft on your distro of choice: `sudo snap install snapcraft --classic`
 ```
 
-# License
+## Known issues
+
+The indicator is under development and you're probably best off not using it quite yet. You should be aware of at least the following:
+
+- The Livebook server is not yet quit when the indicator is quit from the indicator menu item (`pkill -f erl` is your friend for now). It _is_ already quit when launched from the terminal and closed with Ctrl+C.
+
+## License
 
 Copyright (C) 2022 Matias Piipari.
 
