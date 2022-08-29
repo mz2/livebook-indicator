@@ -1,6 +1,6 @@
 # livebook-indicator
 
-A GTK3 based Linux "desktop app" for Livebook, on the same lines as the "desktop apps" for macOS and Windows distributed (= an app indicator).
+A GTK3 based Linux "desktop app" for Livebook, [on the same lines as the Livebook "desktop apps" for macOS and Windows](https://news.livebook.dev/introducing-the-livebook-desktop-app-4C8dpu) (= an app indicator).
 
 This app is meant to go with the fully contained Livebook build currently developed over at https://github.com/livebook-dev/livebook/compare/main...mz2:livebook:mz2/snap (it is [built inside](https://github.com/mz2/livebook/blob/mz2/snap/snap/snapcraft.yaml#L30-L33) that package).
 
