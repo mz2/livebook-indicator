@@ -14,6 +14,9 @@ use std::process::Command;
 
 use ctrlc;
 
+use nix::sys::signal::{self, Signal};
+use nix::unistd::Pid;
+
 fn xdg_open(url: &str) {
   Command::new("xdg-open")
     .args([url])
@@ -21,15 +24,26 @@ fn xdg_open(url: &str) {
     .expect("Failed to open browser");
 }
 
-fn create_menu(url: String) -> gtk::Menu {
+// passing a PID to avoid having to mess with borrowed, shared mutable state (the server process handle).
+fn create_menu(livebook_url: String, livebook_pid: u32) -> gtk::Menu {
   let menu = gtk::Menu::new();
   let open_browser_item = gtk::CheckMenuItem::with_label("Open Browser");
   open_browser_item.connect_activate(move |_| {
-    xdg_open(&url);
+    xdg_open(&livebook_url);
   });
   let quit_item = gtk::CheckMenuItem::with_label("Quit");
-  quit_item.connect_activate(|_| {
-    gtk::main_quit();
+  quit_item.connect_activate(move |_| match i32::try_from(livebook_pid) {
+    Ok(livebook_pid) => {
+      signal::kill(Pid::from_raw(livebook_pid), Signal::SIGTERM).expect(&format!(
+        "Failed to SIGTERM kill livebook server with pid {}",
+        livebook_pid,
+      ));
+      gtk::main_quit();
+    }
+    _ => {
+      println!("Unexpected PID for livebook server (could not convert) -> could not send SIGTERM.");
+      gtk::main_quit();
+    }
   });
 
   menu.append(&open_browser_item);
@@ -51,6 +65,7 @@ fn create_indicator() -> AppIndicator {
 fn main() {
   gtk::init().unwrap();
 
+  // start the livebook server
   let server = Popen::create(
     &["livebook"],
     PopenConfig {
@@ -59,6 +74,8 @@ fn main() {
     },
   );
 
+  // if the livebook server started successfully, wasn't immediately killed, and its pid was found ->
+  // create the app indicator.
   match server {
     Err(_) => process::exit(-1),
     Ok(mut server_process) => {
@@ -88,26 +105,30 @@ fn main() {
               let url = &url_capture[1];
               xdg_open(url);
 
-              match server_process.poll() {
-                Some(exit_status) => {
-                  println!(
+              match (server_process.poll(), server_process.pid()) {
+                (Some(exit_status), _) => {
+                  panic!(
                     "Failed to start livebook server (exited successfully: {:?}) (is it running already?)",
                     exit_status.success()
                   );
-                  process::exit(-1);
                 }
-                None => {
+                (None, Some(server_pid)) => {
                   println!("Started livebook server successfully.");
                   ctrlc::set_handler(move || match server_process.terminate() {
                     Err(_) => println!("Failed to kill livebook server"),
                     Ok(_) => process::exit(0),
                   })
                   .expect("Error setting Ctrl-C handler");
+
+                  // finally, set up the app indicator.
                   let mut indicator = create_indicator();
-                  let mut menu = create_menu(url.to_string());
+                  let mut menu = create_menu(url.to_string(), server_pid);
                   indicator.set_menu(&mut menu);
                   menu.show_all();
                   gtk::main();
+                }
+                _ => {
+                  panic!("Unexpected state: server process running but could not get its pid?");
                 }
               }
             }
