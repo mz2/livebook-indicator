@@ -55,7 +55,15 @@ fn create_menu(livebook_url: String, livebook_pid: u32) -> gtk::Menu {
 fn create_indicator() -> AppIndicator {
   let mut indicator = AppIndicator::new("Livebook", "");
   indicator.set_status(AppIndicatorStatus::Active);
-  let icon_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
+
+  // try finding icon from...
+  // $SNAP/assets/livebook-icon.png
+  // $CARGO_MANIFEST_DIR/assets/livebook-icon.png (i.e. root of source repo when doing `cargo run`)
+  let icon_path = match env::var("SNAP") {
+    Ok(snap_root) => Path::new(&snap_root).join("assets"),
+    Err(_) => Path::new(env!("CARGO_MANIFEST_DIR")).join("assets"),
+  };
+
   indicator.set_icon_theme_path(icon_path.to_str().unwrap());
   indicator.set_icon_full("livebook-icon", "icon");
 
