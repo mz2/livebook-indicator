@@ -53,7 +53,7 @@ fn create_menu(livebook_url: String, livebook_pid: u32) -> gtk::Menu {
 }
 
 fn create_indicator() -> AppIndicator {
-  let mut indicator = AppIndicator::new("libappindicator test application", "");
+  let mut indicator = AppIndicator::new("Livebook", "");
   indicator.set_status(AppIndicatorStatus::Active);
   let icon_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
   indicator.set_icon_theme_path(icon_path.to_str().unwrap());
@@ -65,9 +65,15 @@ fn create_indicator() -> AppIndicator {
 fn main() {
   gtk::init().unwrap();
 
+  // livebook server path different depending on whether we're confined or not.
+  let server_path = match env::var("SNAP") {
+    Ok(snap_root) => format!("{}/wrappers/start-livebook.sh", snap_root).to_string(),
+    Err(_) => "livebook.server".to_string(),
+  };
+
   // start the livebook server
   let server = Popen::create(
-    &["livebook"],
+    &[server_path],
     PopenConfig {
       stdout: subprocess::Redirection::Pipe,
       ..Default::default()
@@ -77,7 +83,9 @@ fn main() {
   // if the livebook server started successfully, wasn't immediately killed, and its pid was found ->
   // create the app indicator.
   match server {
-    Err(_) => process::exit(-1),
+    Err(_) => {
+      panic!("Failed to start livebook server. Is it installed and in $PATH?");
+    }
     Ok(mut server_process) => {
       let server_stdout = &server_process.stdout;
       match &server_stdout {
