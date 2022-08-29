@@ -34,7 +34,7 @@ fn create_menu(livebook_url: String, livebook_pid: u32) -> gtk::Menu {
   let quit_item = gtk::CheckMenuItem::with_label("Quit");
   quit_item.connect_activate(move |_| match i32::try_from(livebook_pid) {
     Ok(livebook_pid) => {
-      signal::kill(Pid::from_raw(livebook_pid), Signal::SIGTERM).expect(&format!(
+      signal::kill(Pid::from_raw(livebook_pid), Signal::SIGKILL).expect(&format!(
         "Failed to SIGTERM kill livebook server with pid {}",
         livebook_pid,
       ));
