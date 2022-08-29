@@ -60,6 +60,7 @@ snapcraft # to install snapcraft on your distro of choice: `sudo snap install sn
 The indicator is under development and you're probably best off not using it quite yet. You should be aware of at least the following:
 
 - The Livebook server is not yet quit when the indicator is quit from the indicator menu item (`pkill -f erl` is your friend for now). It _is_ already quit when launched from the terminal and closed with Ctrl+C.
+- No desktop launcher when packaged inside the snap.
 
 ## License
 
