@@ -10,27 +10,26 @@ use libappindicator::{AppIndicator, AppIndicatorStatus};
 
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::process::Command;
+
+use open;
 
 use ctrlc;
 
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
 
-fn xdg_open(url: &str) {
-  Command::new("xdg-open")
-    .args([url])
-    .output()
-    .expect("Failed to open browser");
+fn open_url(url: &str) {
+  match open::that(&url) {
+    Ok(()) => (),
+    Err(err) => eprintln!("An error occurred when opening '{}': {}", &url, err),
+  }
 }
 
 // passing a PID to avoid having to mess with borrowed, shared mutable state (the server process handle).
 fn create_menu(livebook_url: String, livebook_pid: u32) -> gtk::Menu {
   let menu = gtk::Menu::new();
   let open_browser_item = gtk::MenuItem::with_label("Open Browser");
-  open_browser_item.connect_activate(move |_| {
-    xdg_open(&livebook_url);
-  });
+  open_browser_item.connect_activate(move |_| open_url(&livebook_url));
   let quit_item = gtk::MenuItem::with_label("Quit");
   quit_item.connect_activate(move |_| match i32::try_from(livebook_pid) {
     Ok(livebook_pid) => {
@@ -41,7 +40,9 @@ fn create_menu(livebook_url: String, livebook_pid: u32) -> gtk::Menu {
       gtk::main_quit();
     }
     _ => {
-      println!("Unexpected PID for livebook server (could not convert) -> could not send SIGTERM.");
+      eprintln!(
+        "Unexpected PID for livebook server (could not convert) -> could not send SIGTERM."
+      );
       gtk::main_quit();
     }
   });
@@ -111,7 +112,7 @@ fn main() {
           // hack hack.
           match &APP_URL_PATTERN.captures(&line) {
             None => {
-              println!("Failed to find livebook server URL");
+              eprintln!("Failed to find livebook server URL");
               server_process
                 .terminate()
                 .expect("Failed to terminate livebook server");
@@ -119,7 +120,7 @@ fn main() {
             }
             Some(url_capture) => {
               let url = &url_capture[1];
-              xdg_open(url);
+              open_url(url);
 
               match (server_process.poll(), server_process.pid()) {
                 (Some(exit_status), _) => {
@@ -131,7 +132,7 @@ fn main() {
                 (None, Some(server_pid)) => {
                   println!("Started livebook server successfully.");
                   ctrlc::set_handler(move || match server_process.terminate() {
-                    Err(_) => println!("Failed to kill livebook server"),
+                    Err(_) => eprintln!("Failed to kill livebook server"),
                     Ok(_) => process::exit(0),
                   })
                   .expect("Error setting Ctrl-C handler");
@@ -151,7 +152,7 @@ fn main() {
           }
         }
         None => {
-          println!("livebook server stdout unexpectedly not readable.");
+          eprintln!("livebook server stdout unexpectedly not readable.");
           server_process
             .terminate()
             .expect("Failed to terminate livebook server process");
