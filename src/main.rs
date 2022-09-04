@@ -12,6 +12,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 use open;
+use url::Url;
 
 use ctrlc;
 
@@ -19,6 +20,7 @@ use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
 
 fn open_url(url: &str) {
+  println!("Opening '{}'", url);
   match open::that(&url) {
     Ok(()) => (),
     Err(err) => eprintln!("An error occurred when opening '{}': {}", &url, err),
@@ -57,7 +59,8 @@ fn create_indicator() -> AppIndicator {
   let mut indicator = AppIndicator::new("Livebook", "");
   indicator.set_status(AppIndicatorStatus::Active);
 
-  // try finding icon from...
+  // because the app and the icon are not bundled together in any particular way,
+  // let's try finding icon from some known expected locations...
   // $SNAP/assets/livebook-icon.png
   // $CARGO_MANIFEST_DIR/assets/livebook-icon.png (i.e. root of source repo when doing `cargo run`)
   let icon_path = match env::var("SNAP") {
@@ -72,6 +75,17 @@ fn create_indicator() -> AppIndicator {
 }
 
 fn main() {
+  let args: Vec<String> = env::args().collect();
+  // dbg!(args);
+
+  let url_to_open = args
+    .iter()
+    .map(|arg| Url::parse(arg))
+    .find(|url| match url {
+      Ok(url) => url.scheme() == "livebook",
+      Err(_) => false,
+    });
+
   gtk::init().unwrap();
 
   // livebook server path different depending on whether inside or outside confinement.
@@ -120,6 +134,20 @@ fn main() {
             }
             Some(url_capture) => {
               let url = &url_capture[1];
+
+              match Url::parse(url) {
+                Ok(parsed_url) => {
+                  println!("Parsed URL:");
+                  dbg!(parsed_url);
+                }
+                Err(_) => {
+                  server_process
+                    .terminate()
+                    .expect("Failed to parse Livebook URL from server process stdout -> exiting.");
+                  process::exit(-1);
+                }
+              };
+
               open_url(url);
 
               match (server_process.poll(), server_process.pid()) {
